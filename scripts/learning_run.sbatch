@@ -9,6 +9,7 @@
 set -euo pipefail
 ROOT=/home_data/home/v-niuzhk/project/NeuroLM
 export OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4
+export MKL_THREADING_LAYER=GNU
 export TIKTOKEN_CACHE_DIR="$ROOT/data/tokenizer-cache"
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
 cd "$ROOT"
