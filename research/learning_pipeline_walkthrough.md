@@ -144,6 +144,7 @@ HMC 的 `[4,6000]` 同样拆成一秒 patch，得到 `[120,200]`，补到 `[276,
 | `multitask.json` | 两个任务怎样交替训练，各自输出什么？ |
 | `tokenizer.json` | 波形怎样变成连续向量、离散码、两个重建结果？ |
 | `autoregression.json` | 编号怎样移动一个完整时间步，GPT 预测了什么？ |
+| `tokenizer_inspection.json` | 加载训练后的 tokenizer，在 S002 上重建出的波形与频率具体是多少？ |
 | `text_source.json` | 这次究竟用了什么文字数据？ |
 | `*-first-batch.pt` | 想逐元素查看首批模型输入时读取什么？ |
 | `*.pt` | 各阶段实际保存的模型权重；不提交到 Git |
@@ -153,6 +154,10 @@ cd /home_data/home/v-niuzhk/project/NeuroLM
 sbatch scripts/learning_prepare.sbatch
 # 确认预处理成功、模型下载与校验成功之后再提交
 sbatch scripts/learning_run.sbatch
+# 四阶段作业成功后，加载 tokenizer 做一次零更新重建检查
+sbatch scripts/learning_run.sbatch --inspect-tokenizer
+# 上一作业成功后，把实测 JSON 生成为可纳入 Git 的 Markdown
+/home_data/home/v-niuzhk/anaconda3/bin/python scripts/render_learning_report.py
 ```
 
 Git 分支是 `codex/learning-pipeline`。`origin` 指向用户 fork `fanniuzhan/NeuroLM`，`upstream` 指向作者仓库。代码、讲解与小型结果摘要提交到 Git；EDF、切片、缓存与大权重由下载清单和日志追踪，避免进入 Git。

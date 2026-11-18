@@ -13,4 +13,4 @@ export MKL_THREADING_LAYER=GNU
 export TIKTOKEN_CACHE_DIR="$ROOT/data/tokenizer-cache"
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
 cd "$ROOT"
-/home_data/home/v-niuzhk/anaconda3/envs/NeuroLM/bin/python -u scripts/learning_pipeline.py --steps 16
+/home_data/home/v-niuzhk/anaconda3/envs/NeuroLM/bin/python -u scripts/learning_pipeline.py --steps 16 "$@"

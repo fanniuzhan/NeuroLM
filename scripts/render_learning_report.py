@@ -21,6 +21,9 @@ def main():
              '- Git HTTPS 无凭据；改用已可访问的 SSH 连接，把独立分支推送到用户 fork。', '']
     lines += ['- 作业 4350009 四阶段均执行成功，但 HMC 的答案格式无效。独立检查作业 4350021 证明原 HMCLoader 的监督向左错一位：问题已有左括号，目标却仍从左括号开始。修复为从完整问题长度之后监督；修复前的 JSON 保存在 `data/runs/learning/attempt-4350009/`。',
               '- 修复后的七类别对齐检查与完整四阶段重跑构成最终验证；这只修正监督位置，不保证少量训练后的预测准确。','']
+    lines += ['## 先看实际结论','',
+              '四阶段运行完成。Workload 与 HMC 生成仍有错误和多余文字；只有 16 步更新，不能说模型已学会任务。HMC 对齐修复后，验证与测试各 10 个展示窗口中各有 2 个无法解析的输出，修复前各有 10 个；该前后变化还受教学抽样变化影响，不作为效果比较。',
+              '下一秒 EEG 预测也有错误；本次验证的是数据到模型、损失、梯度更新与输出的通路。','']
     explanations = {
         'tokenizer.patch_embed':'每个一秒波形经卷积和线性投影得到连续向量',
         'tokenizer.blocks.0':'EEG encoder 第一层处理电极与时间信息',
@@ -39,8 +42,8 @@ def main():
     for stage,title in [('workload','Workload 单任务'),('multitask','Workload + HMC 多任务'),
                          ('tokenizer','运动想象：训练 tokenizer'),('autoregression','运动想象：多通道自回归')]:
         d = load(stage)
-        lines += [f'## {title}', '', f"实际执行 {d['steps']} 次权重更新。首末损失记录如下（不同训练 batch，不表示严格收敛趋势）：",'',
-                  '```json',json.dumps([d['losses'][0],d['losses'][-1]],ensure_ascii=False,indent=2),'```','',
+        lines += [f'## {title}', '', f"实际执行 {d['steps']} 次权重更新。逐步损失记录如下（不同训练 batch，不表示严格收敛趋势）：",'',
+                  '```json',json.dumps(d['losses'],ensure_ascii=False,indent=2),'```','',
                   '### 数据与关键层实际输出','']
         for name,value in d['trace'].items():
             meaning = explanations.get(name,name)
@@ -59,6 +62,10 @@ def main():
         if 'heldout' in d:
             lines += ['### S002 留出记录的下一秒预测', '', '```json',
                       json.dumps(d['heldout'],ensure_ascii=False,indent=2),'```','']
+    inspection = load('tokenizer_inspection')
+    lines += ['## tokenizer 在 S002 上实际重建了什么','',
+              '这次只加载保存的权重并前向一次，未更新权重。下面的 first_values 是数组展开后的前八个数；目标和重建是标准化空间的值，不直接等于原始微伏。', '',
+              '```json',json.dumps(inspection,ensure_ascii=False,indent=2),'```','']
     lines += ['## 如何解释这次结果','',
               '四阶段都有有限损失、反向更新、保存的 checkpoint 及留出样本输出，才能说教学流程已跑通。少量更新的损失与少数窗口的准确率不能证明模型已经学会任务，也不能证明多任务或预训练优于原始模型。',
               '文字辅助数据是显式保存的简短英文，不是 OpenWebText；EEG tokenizer 随机初始化后只训练少量步。自回归阶段的 GPT 复用作者权重，不能称为从零预训练。', '']
