@@ -1,6 +1,5 @@
 """Small, traced runs of the actual NeuroLM modules; not a benchmark reproduction."""
 import argparse
-import copy
 import gc
 import json
 import os
@@ -16,7 +15,7 @@ os.environ.setdefault('TIKTOKEN_CACHE_DIR', str(ROOT/'data/tokenizer-cache'))
 import numpy as np
 import torch
 import tiktoken
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from dataset import PickleLoader
 from downstream_dataset import WorkloadLoader, HMCLoader
 from model.model import GPTConfig
@@ -113,13 +112,32 @@ def instruction(checkpoint, stage, tasks, steps):
     trace = {}
     hs = hooks(model, {'tokenizer.patch_embed','tokenizer.blocks.0','tokenizer',
                        'encode_transform_layer','GPT2.transformer.h.0','GPT2.lm_head'}, trace)
-    loaders = {t:iter(DataLoader(dataset(t,'train'),batch_size=2,shuffle=True,num_workers=0)) for t in tasks}
+    datasets = {t:dataset(t,'train') for t in tasks}
+    orders = {t:torch.randperm(len(datasets[t])).tolist() for t in tasks}
+    loaders = {t:iter(DataLoader(Subset(datasets[t],orders[t]),batch_size=2,num_workers=0)) for t in tasks}
+    cursors = {t:0 for t in tasks}
+    trace['task_inputs'] = {}
     optimizer = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=1e-5)
     losses = []
     for step in range(steps):
         task = tasks[step%len(tasks)]
         batch = batch_to_gpu(next(loaders[task]))
         x,text,y,chans,time,valid,mask = batch
+        indices = orders[task][cursors[task]:cursors[task]+2]
+        files = [datasets[task].files[i] for i in indices]
+        cursors[task] += 2
+        if task not in trace['task_inputs']:
+            sources = []
+            for filename in files:
+                with (Path(datasets[task].root)/filename).open('rb') as f:
+                    sample = pickle.load(f)
+                sources.append({'processed_file':filename, 'raw_file':sample['source'],
+                                'start_seconds':sample['start_seconds'], 'label':sample['y']})
+            trace['task_inputs'][task] = {'sources':sources,'tensors':describe(batch),
+                'valid_patch_counts':valid.sum(-1).cpu().tolist(),
+                'full_training_text':ENC.decode(text[0,1:].tolist()),
+                'supervised_answer':ENC.decode(y[0,y[0]!=-1].tolist())}
+            torch.save([t.cpu() for t in batch],RUN/(stage+'-'+task+'-batch.pt'))
         # EEG prefix positions are not language-answer supervision.
         y_eeg = torch.full((x.size(0),x.size(1)), -1-model.GPT2.config.vocab_size, device='cuda',dtype=torch.long)
         model.train(); optimizer.zero_grad(set_to_none=True)
@@ -129,7 +147,7 @@ def instruction(checkpoint, stage, tasks, steps):
         loss.backward()
         grad = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.)
         optimizer.step()
-        losses.append({'step':step,'task':task,'loss':float(loss),'gradient_norm':float(grad)})
+        losses.append({'step':step,'task':task,'files':files,'loss':float(loss),'gradient_norm':float(grad)})
         if step == 0:
             torch.save([t.cpu() for t in batch],RUN/(stage+'-first-batch.pt'))
             trace['loader'] = dict(zip(['eeg','text','answer_targets','channels','time','valid','attention'],map(describe,batch)))

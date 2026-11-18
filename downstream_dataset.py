@@ -618,7 +618,7 @@ class HMCLoader(Dataset):
             return X_eeg, text, Y, input_chans, input_time, eeg_mask.bool(), gpt_mask.bool()
         
         Y_text = torch.full_like(text, fill_value=-1)
-        prompt_len = self.prompt.size(0) - 1
+        prompt_len = self.prompt.size(0)
         Y_text[prompt_len - 1:valid_text_len - 1] = text[prompt_len:valid_text_len]
         return X_eeg, text, Y_text, input_chans, input_time, eeg_mask.bool(), gpt_mask.bool()
 
