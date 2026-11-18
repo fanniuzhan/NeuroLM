@@ -194,6 +194,7 @@ class VQ_Align(nn.Module):
     def __init__(self, 
                  encoder_config,
                  decoder_config,
+                 text_embedding_weight=None,
                  ):
         super(VQ_Align, self).__init__()
         self.VQ = VQ(encoder_config, decoder_config)
@@ -203,10 +204,13 @@ class VQ_Align(nn.Module):
                 nn.Linear(256, 2)
             )
 
-        model_hf = GPT2LMHeadModel.from_pretrained('gpt2')
-        sd_hf = model_hf.state_dict()
         self.wte = nn.Embedding(50257, 768, _freeze=True)
-        self.wte.weight.data = sd_hf['transformer.wte.weight']
+        if text_embedding_weight is None:
+            model_hf = GPT2LMHeadModel.from_pretrained('gpt2')
+            text_embedding_weight = model_hf.state_dict()['transformer.wte.weight']
+        if text_embedding_weight.shape != self.wte.weight.shape:
+            raise ValueError('Text embeddings must have shape [50257, 768]')
+        self.wte.weight.data.copy_(text_embedding_weight)
         
         self.domain_classifier.apply(self._init_weights)
     
