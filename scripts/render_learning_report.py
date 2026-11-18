@@ -19,6 +19,8 @@ def main():
              '- 作业 4349987：样本切窗完成，但 NumPy int64 无法写入 JSON。转换为 Python int 后作业 4349989 完整完成。',
              '- 作业 4350001：初始化模型时 MKL/OpenMP 符号冲突。通过作业环境 `MKL_THREADING_LAYER=GNU` 修复后重新运行。',
              '- Git HTTPS 无凭据；改用已可访问的 SSH 连接，把独立分支推送到用户 fork。', '']
+    lines += ['- 作业 4350009 四阶段均执行成功，但 HMC 的答案格式无效。独立检查作业 4350021 证明原 HMCLoader 的监督向左错一位：问题已有左括号，目标却仍从左括号开始。修复为从完整问题长度之后监督；修复前的 JSON 保存在 `data/runs/learning/attempt-4350009/`。',
+              '- 修复后的七类别对齐检查与完整四阶段重跑构成最终验证；这只修正监督位置，不保证少量训练后的预测准确。','']
     explanations = {
         'tokenizer.patch_embed':'每个一秒波形经卷积和线性投影得到连续向量',
         'tokenizer.blocks.0':'EEG encoder 第一层处理电极与时间信息',

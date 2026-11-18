@@ -263,12 +263,40 @@ def pretrain(checkpoint, steps):
                 'learning_only':True},RUN/'autoregression.pt')
 
 
+def inspect_tokenizer():
+    ckpt = torch.load(RUN/'tokenizer.pt',map_location='cpu',weights_only=False)
+    aligned = VQ_Align(NTConfig(**ckpt['encoder_args']),NTConfig(**ckpt['decoder_args']),
+                       text_embedding_weight=ckpt['model']['wte.weight'])
+    aligned.load_state_dict(ckpt['model'],strict=True)
+    tokenizer = aligned.VQ.cuda().eval()
+    path = sorted((ROOT/'data/processed/MotorImagery/val').glob('*.pkl'))[0]
+    x,yfreq,yraw,chans,time,valid = batch_to_gpu([t.unsqueeze(0) for t in PickleLoader([path])[0]])
+    mask = valid.unsqueeze(1).repeat(1,x.size(1),1).unsqueeze(1)
+    with torch.no_grad(),autocast():
+        quant,indices,qloss,features = tokenizer.encode(x,chans,time,mask)
+        freq,raw = tokenizer.decode(quant,chans,time,mask)
+    dump('tokenizer_inspection',{
+        'checkpoint':'tokenizer.pt','file':path.name,'slurm_job':os.environ.get('SLURM_JOB_ID'),
+        'updates':0,'input':describe(x),'encoder_features':describe(features),
+        'quantized_vectors':describe(quant),'code_ids_first_8':indices[:8].cpu().tolist(),
+        'frequency_target':describe(yfreq),'frequency_reconstruction':describe(freq),
+        'waveform_target':describe(yraw),'waveform_reconstruction':describe(raw),
+        'frequency_mse':float(torch.nn.functional.mse_loss(freq.float(),yfreq)),
+        'waveform_mse':float(torch.nn.functional.mse_loss(raw.float(),yraw)),
+        'quantization_loss':float(qloss)})
+    print('TOKENIZER HELDOUT RECONSTRUCTION INSPECTION COMPLETE',flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--steps',type=int,default=16)
+    parser.add_argument('--inspect-tokenizer',action='store_true')
     args = parser.parse_args()
     torch.set_num_threads(4)
     random.seed(42); np.random.seed(42); torch.manual_seed(42); torch.cuda.manual_seed_all(42)
+    if args.inspect_tokenizer:
+        inspect_tokenizer()
+        return
     checkpoint = torch.load(ROOT/'data/models/NeuroLM-B.pt',map_location='cpu',weights_only=False)
     dump('environment',{'torch':torch.__version__,'gpu':torch.cuda.get_device_name(),
                         'git_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),

@@ -61,6 +61,14 @@ OMP_NUM_THREADS=1 torchrun --nnodes=1 --nproc_per_node=8 train_instruction.py \
     --wandb_runname your_runname \
     --wandb_api_key your_api_key \
 ```
+## Learning walkthrough
+
+Small Slurm runs for understanding this implementation: Workload single-task instruction tuning, Workload + HMC multi-task tuning, and two-stage pre-training on a Motor Movement/Imagery subset. These are demonstrations, not benchmark reproductions.
+
+- [Beginner walkthrough (中文)](research/learning_pipeline_walkthrough.md): every step from EDF to model inputs, losses, updates, and outputs.
+- [Measured run results (中文)](research/learning_run_results.md): actual shapes, values, generated answers, and experiment limitations.
+- [Dataset sources and download guide (中文)](research/learning_datasets.md).
+
 ## Citation
 If you find our paper/code useful, please consider citing our work:
 ```
